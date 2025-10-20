@@ -1,0 +1,13 @@
+export default function About() {
+  return (
+    <section className="panel">
+      <h3 className="section-title">About</h3>
+      <p style={{ fontSize: 18 }}>
+        “Celestial R — united in memories and laughter”
+      </p>
+      <p style={{ color: "var(--muted)" }}>
+        A simple space to keep faces, jokes, and chat alive—made for quick sharing and easy updates.
+      </p>
+    </section>
+  );
+}
