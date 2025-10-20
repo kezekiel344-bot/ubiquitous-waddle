@@ -1,0 +1,80 @@
+import { useEffect, useState } from "react";
+import { db } from "../lib/firebase";
+import { ref, onValue, push } from "firebase/database";
+import { isAdmin } from "../lib/auth";
+
+type Meme = {
+  id?: string;
+  title: string;
+  src: string;
+};
+
+export default function Memes() {
+  const [memes, setMemes] = useState<Meme[]>([]);
+  const admin = isAdmin();
+
+  useEffect(() => {
+    const memesRef = ref(db, "memes");
+    const unsub = onValue(memesRef, (snap) => {
+      const data = snap.val() || {};
+      const list: Meme[] = Object.entries<any>(data)
+        .map(([id, m]) => ({ id, ...m }))
+        .sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+      setMemes(list);
+    });
+    return () => unsub();
+  }, []);
+
+  async function addMeme(title: string, src: string) {
+    const memesRef = ref(db, "memes");
+    await push(memesRef, { title, src });
+  }
+
+  return (
+    <section className="panel">
+      <h3 className="section-title">Memes gallery</h3>
+      <div className="grid">
+        {memes.map((m) => (
+          <article className="card" key={m.id}>
+            <img src={m.src} alt={m.title} />
+            <div className="body">
+              <strong>{m.title}</strong>
+            </div>
+          </article>
+        ))}
+        {memes.length === 0 && (
+          <div className="panel" style={{ gridColumn: "1 / -1", color: "var(--muted)" }}>
+            No memes yet — add the first one below.
+          </div>
+        )}
+      </div>
+
+      {admin && <MemeForm onAdd={addMeme} />}
+    </section>
+  );
+}
+
+function MemeForm({ onAdd }: { onAdd: (title: string, src: string) => void }) {
+  const [title, setTitle] = useState("");
+  const [src, setSrc] = useState("/samples/meme1.jpg");
+
+  return (
+    <div className="panel" style={{ marginTop: 16 }}>
+      <h4 className="section-title">Admin: Add meme</h4>
+      <div className="row">
+        <input className="input" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input className="input" placeholder="Image URL" value={src} onChange={(e) => setSrc(e.target.value)} />
+        <button
+          className="btn"
+          onClick={() => {
+            if (!title || !src) return;
+            onAdd(title, src);
+            setTitle(""); setSrc("/samples/meme1.jpg");
+          }}
+        >
+          Add meme
+        </button>
+      </div>
+    </div>
+  );
+}
