@@ -1,0 +1,72 @@
+import { useEffect, useState } from "react";
+import { db } from "../lib/firebase";
+import { ref, onValue, push } from "firebase/database";
+import { isAdmin } from "../lib/auth";
+
+type Msg = {
+  id?: string;
+  name: string;
+  text: string;
+  ts?: number;
+};
+
+export default function Chat() {
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [name, setName] = useState("");
+  const [text, setText] = useState("");
+
+  useEffect(() => {
+    const messagesRef = ref(db, "messages");
+    const unsub = onValue(messagesRef, (snap) => {
+      const data = snap.val() || {};
+      const list: Msg[] = Object.entries<any>(data)
+        .map(([id, m]) => ({ id, ...m }))
+        .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+      setMessages(list);
+    });
+    return () => unsub();
+  }, []);
+
+  async function send() {
+    if (!name || !text) return;
+    const messagesRef = ref(db, "messages");
+    await push(messagesRef, {
+      name,
+      text,
+      ts: Date.now()
+    });
+    setText("");
+  }
+
+  return (
+    <section className="panel">
+      <h3 className="section-title">Class chat</h3>
+      <div className="panel" style={{ maxHeight: 360, overflowY: "auto" }}>
+        {messages.map((m) => (
+          <div key={m.id} style={{ marginBottom: 10 }}>
+            <strong>{m.name}</strong>{" "}
+            <span style={{ color: "var(--muted)" }}>
+              {m.ts ? new Date(m.ts).toLocaleString() : ""}
+            </span>
+            <div>{m.text}</div>
+          </div>
+        ))}
+        {messages.length === 0 && (
+          <div style={{ color: "var(--muted)" }}>No messages yet—start the first one.</div>
+        )}
+      </div>
+
+      <div className="row" style={{ marginTop: 12 }}>
+        <input className="input" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="input" placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} />
+        <button className="btn" onClick={send}>Send</button>
+      </div>
+
+      {isAdmin() && (
+        <p style={{ marginTop: 8, color: "var(--muted)" }}>
+          Admin tip: Adjust Database Rules in Firebase for moderation if needed.
+        </p>
+      )}
+    </section>
+  );
+}
